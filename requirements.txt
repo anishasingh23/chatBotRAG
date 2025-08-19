@@ -13,3 +13,4 @@ groq
 tiktoken
 unstructured
 python-dotenv  # Add this for .env support
+plotly
