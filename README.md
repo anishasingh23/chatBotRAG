@@ -1,8 +1,8 @@
-# 🚀 DocuChat - Intelligent Document Chat System
+# DocuChat - Intelligent Document Chat System
 
 DocuChat is a powerful Retrieval-Augmented Generation (RAG) system that allows you to have intelligent conversations with your documents. Upload PDFs, Word documents, resumes, and more, then ask questions and get AI-powered answers based on your content.
 
-## 🎯 Why RAG? Why This Architecture?
+## Why RAG? Why This Architecture?
 
 ### The Problem with Traditional Chatbots
 
@@ -18,49 +18,49 @@ We implemented a Retrieval-Augmented Generation system that:
 - Retrieves relevant content using semantic search
 - Generates accurate answers based on your specific content
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ```
 Frontend (Streamlit) → Document Processing → Vector Database (ChromaDB) → LLM (Groq) → Response
 ```
 
-## 🎨 Frontend Choices
+## Frontend Choices
 
 ### Why Streamlit?
 
-- ⚡ **Rapid prototyping** - Built a production-ready UI in hours
-- 🎯 **Python-native** - Seamless integration with our backend
-- 📱 **Responsive** - Works beautifully on desktop and mobile
-- 🎨 **Customizable** - We created a DeepSeek-like clean interface
+- **Rapid prototyping** - Built a production-ready UI in hours
+- **Python-native** - Seamless integration with our backend
+- **Responsive** - Works beautifully on desktop and mobile
+- **Customizable** - We created a DeepSeek-like clean interface
 
 ### What We Didn't Use:
 
 - React/Vue.js (would slow down prototyping)
 - Complex state management (Streamlit handles this beautifully)
 
-## 🧠 AI & Processing Choices
+## AI & Processing Choices
 
 ### Why Groq?
 
-- ⚡ **Blazing fast** - 500+ tokens/second vs typical 20-50 tokens/second
-- 💰 **Cost-effective** - Cheaper than OpenAI for comparable quality
-- 🔓 **Open-weight models** - Using Llama 3.1 8B Instant
-- 🚀 **Hardware-accelerated** - Specialized LPU inference engines
+- **Blazing fast** - 500+ tokens/second vs typical 20-50 tokens/second
+- **Cost-effective** - Cheaper than OpenAI for comparable quality
+- **Open-weight models** - Using Llama 3.1 8B Instant
+- **Hardware-accelerated** - Specialized LPU inference engines
 
 ### Why ChromaDB?
 
-- 🏎️ **Lightning fast** - Optimized for vector search
-- 💾 **Embedded** - No external database needed
-- 🐍 **Python-native** - Perfect for our stack
-- 🎯 **Simple API** - Get started in minutes
+- **Lightning fast** - Optimized for vector search
+- **Embedded** - No external database needed
+- **Python-native** - Perfect for our stack
+- **Simple API** - Get started in minutes
 
 ### Embedding Model: all-MiniLM-L6-v2
 
-- ⚖️ **Perfect balance** of speed and accuracy
-- 🏆 **Well-tested** - Industry standard for prototypes
-- 📏 **384 dimensions** - Optimal for our use case
+- **Perfect balance** of speed and accuracy
+- **Well-tested** - Industry standard for prototypes
+- **384 dimensions** - Optimal for our use case
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -84,17 +84,17 @@ Get your free Groq API key from [Groq Cloud](https://console.groq.com)
 streamlit run app.py
 ```
 
-## 📁 Supported File Types
+## Supported File Types
 
 | Format | Support Level | Best For |
 |--------|---------------|----------|
-| PDF | ✅ Excellent | Reports, resumes, research papers |
-| DOCX | ✅ Excellent | Word documents, formatted content |
-| TXT | ✅ Excellent | Simple text, code, notes |
-| XLSX | ✅ Good | Spreadsheets, data tables |
-| CSV | ✅ Good | Structured data, exports |
+| PDF | Excellent | Reports, resumes, research papers |
+| DOCX | Excellent | Word documents, formatted content |
+| TXT | Excellent | Simple text, code, notes |
+| XLSX | Good | Spreadsheets, data tables |
+| CSV | Good | Structured data, exports |
 
-## 🎯 How It Works
+## How It Works
 
 ### 1. Document Processing Pipeline
 
@@ -128,7 +128,7 @@ else:
     prompt = standard_chat_prompt
 ```
 
-## ⚡ Performance Optimizations
+## Performance Optimizations
 
 ### Why This Setup is Blazing Fast
 
@@ -145,7 +145,7 @@ else:
 | Query Response | 0.5-2 seconds | 10-20x faster than OpenAI |
 | Vector Search | <100ms | Near-instant |
 
-## 🔧 Technical Trade-offs
+## Technical Trade-offs
 
 ### What We Optimized For
 
@@ -161,7 +161,7 @@ else:
 - **Basic file validation** - Trusts user uploads
 - **Single LLM provider** - Groq for consistency
 
-## 🚀 What's Next? (With More Time)
+## What's Next? (With More Time)
 
 ### Immediate Improvements
 
@@ -189,14 +189,14 @@ if scaling_needed:
     add_s3_storage()          # For document storage
 ```
 
-## 🎯 Why This Approach Rocks for Prototyping
+## Why This Approach Rocks for Prototyping
 
 ### Speed vs Quality Balance
 
 We chose technologies that offer the perfect balance:
-- 🏎️ **Groq** - Speed without sacrificing quality
-- 🎯 **ChromaDB** - Simplicity with power
-- 🚀 **Streamlit** - Beauty with functionality
+- **Groq** - Speed without sacrificing quality
+- **ChromaDB** - Simplicity with power
+- **Streamlit** - Beauty with functionality
 
 ### Avoided Complexity
 
@@ -205,7 +205,7 @@ We deliberately avoided:
 - Premature optimization for scale we don't need yet
 - Complex infrastructure that slows development
 
-## 📊 Performance Metrics
+## Performance Metrics
 
 | Metric | Value | Benchmark |
 |--------|--------|-----------|
@@ -214,7 +214,7 @@ We deliberately avoided:
 | Document Processing | 2-5s/doc | Beats commercial solutions |
 | Memory Usage | <500MB | Very efficient |
 
-## 🛠️ Development Philosophy
+## Development Philosophy
 
 ### Build → Measure → Learn
 
@@ -227,12 +227,12 @@ We followed agile principles:
 ### Minimal Viable Product → Amazing Product
 
 Started with core functionality, then added:
-- ✨ Beautiful UI/UX
-- 🎯 Smart document processing
-- ⚡ Blazing fast performance
-- 🎨 Professional styling
+- Beautiful UI/UX
+- Smart document processing
+- Blazing fast performance
+- Professional styling
 
-## 🤝 Contributing
+## Contributing
 
 We love contributions! Areas needing help:
 - Additional file format support
@@ -241,11 +241,11 @@ We love contributions! Areas needing help:
 - UI/UX improvements
 - Testing and documentation
 
-## 📝 License
+## License
 
 MIT License - feel free to use this for your own projects!
 
-## 🎉 Conclusion
+## Conclusion
 
 DocuChat represents the perfect blend of cutting-edge AI technology and practical, user-centered design. It demonstrates how with the right architectural choices and modern tools, you can build production-quality AI applications in record time.
 
@@ -258,4 +258,4 @@ DocuChat represents the perfect blend of cutting-edge AI technology and practica
 
 ---
 
-Built with ❤️ using Python, Streamlit, ChromaDB, and Groq
+Built with care using Python, Streamlit, ChromaDB, and Groq
