@@ -1,0 +1,15 @@
+# requirements.txt
+streamlit
+langchain
+chromadb
+pypdf2
+python-docx
+openpyxl
+pdf2image
+pytesseract
+pillow
+sentence-transformers
+groq
+tiktoken
+unstructured
+python-dotenv  # Add this for .env support
