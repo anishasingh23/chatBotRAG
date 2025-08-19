@@ -27,10 +27,10 @@ load_dotenv()
 
 # Set page configuration
 st.set_page_config(
-    page_title="RAG Chat System",
-    page_icon="📚",
+    page_title="DocuChat - RAG Chat System",
+    page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # Initialize session state variables
@@ -48,9 +48,94 @@ if "research_mode" not in st.session_state:
     st.session_state.research_mode = False
 if "current_files" not in st.session_state:
     st.session_state.current_files = []
+if "show_upload" not in st.session_state:
+    st.session_state.show_upload = True
 
 # Get API key from environment variable
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
+# Custom CSS for better styling with fixed colors
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 2.5rem !important;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .sub-header {
+        font-size: 1.2rem !important;
+        color: #666;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .upload-container {
+        background-color: #f8f9fa;
+        padding: 2rem;
+        border-radius: 10px;
+        border: 2px dashed #1f77b4;
+        margin-bottom: 2rem;
+    }
+    .stButton button {
+        background-color: #1f77b4;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+    .stButton button:hover {
+        background-color: #135e96;
+    }
+    .process-btn {
+        background-color: #28a745 !important;
+    }
+    .process-btn:hover {
+        background-color: #1e7e34 !important;
+    }
+    .clear-btn {
+        background-color: #dc3545 !important;
+    }
+    .clear-btn:hover {
+        background-color: #bd2130 !important;
+    }
+    .chat-message-user {
+        background-color: #e6f7ff;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #1f77b4;
+        color: #333 !important;
+    }
+    .chat-message-assistant {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #28a745;
+        color: #333 !important;
+    }
+    .status-box {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 5px;
+        border-left: 4px solid #6c757d;
+        margin-bottom: 1rem;
+        color: #333 !important;
+    }
+    /* Ensure text is visible in all containers */
+    .stMarkdown, .stText, .stCode {
+        color: #333 !important;
+    }
+    /* Fix for chat input */
+    .stChatInput {
+        position: fixed;
+        bottom: 2rem;
+        width: 70%;
+        z-index: 100;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Function to extract text from different file types
 def extract_text_from_file(uploaded_file) -> str:
@@ -61,14 +146,14 @@ def extract_text_from_file(uploaded_file) -> str:
     try:
         if file_extension == ".pdf":
             pdf_reader = pypdf.PdfReader(uploaded_file)
-            for page in pdf_reader.pages:
+            for page_num, page in enumerate(pdf_reader.pages):
                 page_text = page.extract_text()
                 if page_text:
-                    text += page_text + "\n"
+                    text += f"--- PAGE {page_num + 1} ---\n{page_text}\n\n"
         
         elif file_extension in [".docx", ".doc"]:
             doc = DocxDocument(io.BytesIO(uploaded_file.getvalue()))
-            for paragraph in doc.paragraphs:
+            for para_num, paragraph in enumerate(doc.paragraphs):
                 if paragraph.text.strip():
                     text += paragraph.text + "\n"
         
@@ -80,18 +165,16 @@ def extract_text_from_file(uploaded_file) -> str:
             text = df.to_string()
         
         elif file_extension == ".csv":
-            # Try different encodings for CSV
             encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
             for encoding in encodings:
                 try:
-                    uploaded_file.seek(0)  # Reset file pointer
+                    uploaded_file.seek(0)
                     df = pd.read_csv(uploaded_file, encoding=encoding)
                     text = df.to_string()
                     break
                 except UnicodeDecodeError:
                     continue
             if not text:
-                # Fallback: read as text
                 uploaded_file.seek(0)
                 text = uploaded_file.getvalue().decode('utf-8', errors='ignore')
         
@@ -99,9 +182,8 @@ def extract_text_from_file(uploaded_file) -> str:
             st.error(f"Unsupported file type: {file_extension}")
             return ""
         
-        # Clean up text - remove excessive whitespace but preserve structure
-        text = re.sub(r'[ \t]+', ' ', text)  # Replace multiple spaces/tabs with single space
-        text = re.sub(r'\n\s*\n', '\n\n', text)  # Replace multiple newlines with double newline
+        text = re.sub(r'[ \t]+', ' ', text)
+        text = re.sub(r'\n\s*\n', '\n\n', text)
         text = text.strip()
         
         return text if text else ""
@@ -109,63 +191,63 @@ def extract_text_from_file(uploaded_file) -> str:
         st.error(f"Error extracting text from {uploaded_file.name}: {str(e)}")
         return ""
 
-# Function to split text into chunks
-def split_text_into_chunks(text: str, chunk_size: int = 800, chunk_overlap: int = 150) -> List[str]:
-    """Split text into overlapping chunks with better boundary detection"""
+# Function to split text into chunks with better project detection
+def split_text_into_chunks(text: str, chunk_size: int = 600, chunk_overlap: int = 100) -> List[str]:
+    """Split text into overlapping chunks with better boundary detection for resumes"""
     if not text:
         return []
     
+    project_patterns = [
+        r'(?i)(?:projects?|work experience|experience|portfolio)[:\s]*\n',
+        r'(?i)\b(?:project|experience)\b.*\n',
+        r'(?i)^[A-Z][A-Za-z\s]+:.*$',
+    ]
+    
     chunks = []
-    start = 0
-    text_length = len(text)
     
-    while start < text_length:
-        # Determine end position
-        end = start + chunk_size
-        
-        if end >= text_length:
-            chunks.append(text[start:].strip())
-            break
-        
-        # Look for good breaking points (prioritize paragraph breaks, then sentences)
-        break_points = [
-            text.rfind('\n\n', start, end),  # Paragraph break
-            text.rfind('. ', start, end),    # Sentence end with space
-            text.rfind('? ', start, end),    # Question end
-            text.rfind('! ', start, end),    # Exclamation end
-            text.rfind('\n', start, end),    # Line break
-            text.rfind('; ', start, end),    # Semicolon
-            text.rfind(': ', start, end),    # Colon
-            text.rfind(', ', start, end),    # Comma
-            text.rfind(' ', start, end),     # Space
-        ]
-        
-        # Find the best break point
-        break_point = -1
-        for bp in break_points:
-            if bp > start + chunk_size // 2:  # Ensure we don't make chunks too small
-                break_point = bp
-                break
-        
-        # If no good break point found, just break at the chunk size
-        if break_point == -1:
-            break_point = end
-        else:
-            # Adjust for the break point character(s)
-            if text[break_point:break_point+2] == '\n\n':
-                break_point += 2
-            elif break_point < text_length - 1 and text[break_point+1] == ' ':
-                break_point += 2
-            else:
-                break_point += 1
-        
-        chunks.append(text[start:break_point].strip())
-        start = break_point - chunk_overlap
-        if start < 0:
-            start = 0
+    for pattern in project_patterns:
+        sections = re.split(pattern, text)
+        if len(sections) > 1:
+            for i, section in enumerate(sections):
+                if i > 0 and section.strip():
+                    if len(section) > chunk_size * 2:
+                        sub_chunks = split_by_sentences(section, chunk_size, chunk_overlap)
+                        chunks.extend(sub_chunks)
+                    else:
+                        chunks.append(section.strip())
+            if chunks:
+                return chunks
     
-    # Filter out empty chunks
-    return [chunk for chunk in chunks if chunk]
+    return split_by_sentences(text, chunk_size, chunk_overlap)
+
+def split_by_sentences(text: str, chunk_size: int, chunk_overlap: int) -> List[str]:
+    """Split text by sentences with overlap"""
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    chunks = []
+    current_chunk = []
+    current_length = 0
+    
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+            
+        sentence_length = len(sentence)
+        
+        if current_length + sentence_length > chunk_size and current_chunk:
+            chunks.append(' '.join(current_chunk))
+            
+            overlap_start = max(0, len(current_chunk) - 3)
+            current_chunk = current_chunk[overlap_start:]
+            current_length = sum(len(s) for s in current_chunk) + len(current_chunk) - 1
+        
+        current_chunk.append(sentence)
+        current_length += sentence_length + 1
+    
+    if current_chunk:
+        chunks.append(' '.join(current_chunk))
+    
+    return chunks
 
 # Function to process documents
 def process_documents(texts: List[str], metadata: List[dict]) -> List[dict]:
@@ -173,19 +255,20 @@ def process_documents(texts: List[str], metadata: List[dict]) -> List[dict]:
     chunks = []
     
     for i, text in enumerate(texts):
-        if not text or len(text.strip()) < 50:  # Skip very short texts
+        if not text or len(text.strip()) < 50:
             continue
             
         text_chunks = split_text_into_chunks(text)
         for j, chunk in enumerate(text_chunks):
-            if len(chunk) > 50:  # Only add meaningful chunks
+            if len(chunk) > 30:
                 chunks.append({
                     "text": chunk,
                     "metadata": {
                         **metadata[i], 
                         "chunk_id": j,
                         "chunk_length": len(chunk),
-                        "word_count": len(chunk.split())
+                        "word_count": len(chunk.split()),
+                        "is_resume": "resume" in metadata[i]["source"].lower() or "cv" in metadata[i]["source"].lower()
                     }
                 })
     
@@ -195,14 +278,10 @@ def process_documents(texts: List[str], metadata: List[dict]) -> List[dict]:
 def initialize_chromadb():
     """Initialize ChromaDB client and collection"""
     try:
-        # Initialize Chroma client with new API
         client = chromadb.PersistentClient(path="./chroma_db")
-        
-        # Create embedding function
         embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="all-MiniLM-L6-v2"
         )
-        
         return client, embedding_func
     except Exception as e:
         st.error(f"Error initializing ChromaDB: {str(e)}")
@@ -212,19 +291,16 @@ def initialize_chromadb():
 def create_fresh_collection(client, embedding_func, collection_name="documents"):
     """Create a fresh collection, deleting any existing one"""
     try:
-        # Delete existing collection if it exists
         try:
             client.delete_collection(collection_name)
         except:
-            pass  # Collection didn't exist
+            pass
         
-        # Create new collection
         collection = client.get_or_create_collection(
             name=collection_name,
             embedding_function=embedding_func,
             metadata={"created": datetime.now().isoformat()}
         )
-        
         return collection
     except Exception as e:
         st.error(f"Error creating collection: {str(e)}")
@@ -247,39 +323,75 @@ def add_to_chromadb(chunks: List[dict], collection):
             metadatas=metadatas,
             ids=ids
         )
-        
         return True
     except Exception as e:
         st.error(f"Error adding to ChromaDB: {str(e)}")
         return False
 
-# Function to query ChromaDB
-def query_chromadb(query: str, collection, k: int = 4):
-    """Query ChromaDB for similar documents"""
+# Function to query ChromaDB with enhanced retrieval for resumes
+def query_chromadb(query: str, collection, k: int = 8):
+    """Query ChromaDB for similar documents with enhanced retrieval"""
     try:
         results = collection.query(
             query_texts=[query],
             n_results=k,
             include=["documents", "metadatas", "distances"]
         )
+        
+        resume_terms = ["project", "experience", "work", "portfolio", "skill"]
+        if any(term in query.lower() for term in resume_terms):
+            project_results = collection.query(
+                query_texts=["projects experience work portfolio skills"],
+                n_results=min(k, 4),
+                include=["documents", "metadatas", "distances"]
+            )
+            
+            if project_results and project_results['documents']:
+                combined_docs = results['documents'][0] if results['documents'] else []
+                combined_metas = results['metadatas'][0] if results['metadatas'] else []
+                
+                for doc, meta in zip(project_results['documents'][0], project_results['metadatas'][0]):
+                    if doc not in combined_docs:
+                        combined_docs.append(doc)
+                        combined_metas.append(meta)
+                
+                results['documents'] = [combined_docs]
+                results['metadatas'] = [combined_metas]
+        
         return results
     except Exception as e:
         st.error(f"Error querying ChromaDB: {str(e)}")
         return None
 
-# Function to generate response using Groq API
+# Function to generate response using Groq API with enhanced resume handling
 def generate_groq_response(query: str, context: str, research_mode: bool = False) -> str:
-    """Generate response using Groq API"""
+    """Generate response using Groq API with enhanced resume handling"""
     try:
-        # Check if API key is available
         if not GROQ_API_KEY:
             return "Error: GROQ_API_KEY not found. Please check your .env file."
         
-        # Initialize Groq client
         client = groq.Groq(api_key=GROQ_API_KEY)
         
-        # Prepare prompt based on mode
-        if research_mode:
+        if any(term in query.lower() for term in ["project", "experience", "work", "portfolio"]):
+            prompt = f"""
+            Analyze the following resume content and provide a comprehensive response to the query.
+            
+            CONTEXT FROM RESUME:
+            {context}
+            
+            QUERY:
+            {query}
+            
+            Please:
+            1. Extract ALL projects, experiences, or work items mentioned
+            2. Provide complete details for each item
+            3. If multiple items exist, list them all with clear separation
+            4. Include technologies, durations, and achievements for each project
+            5. Be thorough and don't miss any details from the context
+            
+            If the context doesn't contain relevant information, say so clearly.
+            """
+        elif research_mode:
             prompt = f"""
             Based EXCLUSIVELY on the following context, provide a comprehensive analysis with detailed explanations and evidence. 
             If the context doesn't contain relevant information, say so clearly.
@@ -306,12 +418,11 @@ def generate_groq_response(query: str, context: str, research_mode: bool = False
             Provide a clear and direct answer based only on the context.
             """
         
-        # Call Groq API
         chat_completion = client.chat.completions.create(
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a helpful assistant that answers questions based ONLY on the provided context. If the context doesn't contain the answer, say so clearly."
+                    "content": "You are a helpful assistant that extracts complete information from resumes and documents. When asked about projects or experiences, list ALL items found in the context with full details."
                 },
                 {
                     "role": "user",
@@ -320,7 +431,7 @@ def generate_groq_response(query: str, context: str, research_mode: bool = False
             ],
             model="llama-3.1-8b-instant",
             temperature=0.1,
-            max_tokens=1024
+            max_tokens=2048
         )
         
         return chat_completion.choices[0].message.content
@@ -332,16 +443,17 @@ def handle_userinput(user_question: str, research_mode: bool = False):
     """Process user input and generate response"""
     if st.session_state.collection is None or st.session_state.collection.count() == 0:
         st.error("Please upload and process documents first.")
-        return
+        return ""
     
-    # Query ChromaDB for relevant context
-    results = query_chromadb(user_question, st.session_state.collection, k=6 if research_mode else 4)
+    is_resume_query = any(term in user_question.lower() for term in ["project", "experience", "work", "portfolio", "skill"])
+    k = 10 if is_resume_query else (8 if research_mode else 6)
+    
+    results = query_chromadb(user_question, st.session_state.collection, k=k)
     
     if not results or not results.get('documents') or not results['documents'][0]:
         st.error("No relevant context found in the documents. Please try a different question.")
-        return
+        return ""
     
-    # Combine context from retrieved documents with source information
     context_parts = []
     for i, (doc, metadata) in enumerate(zip(results['documents'][0], results['metadatas'][0])):
         source = metadata.get('source', 'Unknown')
@@ -349,33 +461,40 @@ def handle_userinput(user_question: str, research_mode: bool = False):
     
     context = "\n\n".join(context_parts)
     
-    # Generate response
-    with st.spinner("Thinking..."):
+    with st.spinner("Analyzing documents..." if is_resume_query else "Thinking..."):
         response = generate_groq_response(user_question, context, research_mode)
     
-    # Update chat history
     st.session_state.chat_history.append((user_question, response, context))
-    
-    # Display response
-    with st.chat_message("assistant"):
-        st.markdown(response)
-        
-        # Show source documents in an expander
-        with st.expander("Source Context"):
-            if len(context) > 3000:
-                st.text(context[:3000] + "...")
-            else:
-                st.text(context)
+    return response
 
 # Function to reset chat
 def reset_chat():
     """Reset the chat history"""
     st.session_state.chat_history = []
 
+# Function to display chat messages
+def display_chat_messages():
+    """Display chat messages in a clean, modern format"""
+    for i, (question, answer, context) in enumerate(st.session_state.chat_history):
+        # User message
+        st.markdown(f"""
+        <div class="chat-message-user">
+            <strong>👤 You:</strong> {question}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Assistant message
+        st.markdown(f"""
+        <div class="chat-message-assistant">
+            <strong>🤖 Assistant:</strong> {answer}
+        </div>
+        """, unsafe_allow_html=True)
+
 # Main application
 def main():
-    st.title("📚 RAG-Based Chat System")
-    st.markdown("Upload documents, ask questions, and get AI-powered answers based on your content.")
+    # Header
+    st.markdown('<h1 class="main-header">DocuChat 🤖</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Chat with your documents using AI-powered search</p>', unsafe_allow_html=True)
     
     # Check for API key
     if not GROQ_API_KEY:
@@ -393,155 +512,132 @@ def main():
         st.session_state.chroma_client, embedding_func = initialize_chromadb()
         st.session_state.embedding_func = embedding_func
     
-    # Sidebar for document upload and settings
-    with st.sidebar:
-        st.header("📁 Document Upload")
-        
-        # File uploader
-        uploaded_files = st.file_uploader(
-            "Choose documents",
-            type=["pdf", "docx", "txt", "xlsx", "csv"],
-            accept_multiple_files=True,
-            key="file_uploader"
-        )
-        
-        # Process documents button
-        if st.button("Process Documents", type="primary"):
-            if uploaded_files:
-                # Check if files are different from previous upload
-                current_file_names = [f.name for f in uploaded_files]
-                if (st.session_state.processed_docs and 
-                    set(current_file_names) == set(st.session_state.current_files)):
-                    st.info("Same documents already processed. Using existing database.")
-                else:
-                    with st.spinner("Processing documents..."):
-                        # Create a fresh collection
-                        st.session_state.collection = create_fresh_collection(
-                            st.session_state.chroma_client, 
-                            st.session_state.embedding_func
-                        )
-                        
-                        # Extract text from files
-                        all_texts = []
-                        all_metadata = []
-                        
-                        for uploaded_file in uploaded_files:
-                            with st.spinner(f"Processing {uploaded_file.name}..."):
+    # Upload section
+    if st.session_state.show_upload or not st.session_state.processed_docs:
+        with st.container():
+            st.markdown('<div class="upload-container">', unsafe_allow_html=True)
+            st.markdown("### 📁 Upload Your Documents")
+            
+            uploaded_files = st.file_uploader(
+                "Add files",
+                type=["pdf", "docx", "txt", "xlsx", "csv"],
+                accept_multiple_files=True,
+                key="file_uploader",
+                help="Supported formats: PDF, Word, Text, Excel, CSV"
+            )
+            
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                if st.button("📤 Process Documents", type="primary", use_container_width=True):
+                    if uploaded_files:
+                        with st.spinner("Processing documents..."):
+                            st.session_state.collection = create_fresh_collection(
+                                st.session_state.chroma_client, 
+                                st.session_state.embedding_func
+                            )
+                            
+                            all_texts = []
+                            all_metadata = []
+                            
+                            for uploaded_file in uploaded_files:
                                 text = extract_text_from_file(uploaded_file)
-                                if text and len(text.strip()) > 100:  # Reasonable minimum text
+                                if text and len(text.strip()) > 100:
                                     all_texts.append(text)
                                     all_metadata.append({
                                         "source": uploaded_file.name,
                                         "upload_time": datetime.now().isoformat(),
                                         "file_size": len(uploaded_file.getvalue())
                                     })
-                                    st.success(f"✓ {uploaded_file.name} ({len(text)} chars)")
-                                else:
-                                    st.warning(f"⚠️ {uploaded_file.name} - too little text extracted")
-                        
-                        if all_texts:
-                            # Process documents into chunks
-                            chunks = process_documents(all_texts, all_metadata)
                             
-                            if chunks:
-                                # Add to ChromaDB
-                                if add_to_chromadb(chunks, st.session_state.collection):
-                                    st.session_state.processed_docs = True
-                                    st.session_state.documents = all_texts
-                                    st.session_state.current_files = current_file_names
-                                    st.success(f"✅ Processed {len(all_texts)} document(s) with {len(chunks)} chunks!")
-                                    reset_chat()
+                            if all_texts:
+                                chunks = process_documents(all_texts, all_metadata)
+                                
+                                if chunks:
+                                    if add_to_chromadb(chunks, st.session_state.collection):
+                                        st.session_state.processed_docs = True
+                                        st.session_state.documents = all_texts
+                                        st.session_state.current_files = [f.name for f in uploaded_files]
+                                        st.session_state.show_upload = False
+                                        reset_chat()
+                                        st.success(f"✅ Processed {len(all_texts)} document(s) with {len(chunks)} chunks!")
+                                        st.rerun()
                             else:
-                                st.error("No valid text chunks could be created from the documents.")
-                        else:
-                            st.error("Failed to extract sufficient text from any documents.")
-            else:
-                st.warning("Please upload at least one document.")
+                                st.error("Failed to extract sufficient text from any documents.")
+                    else:
+                        st.warning("Please upload at least one document.")
+            
+            with col2:
+                if st.session_state.processed_docs:
+                    if st.button("🔄 Process New Files", use_container_width=True):
+                        st.session_state.show_upload = True
+                        st.rerun()
+            
+            with col3:
+                if st.session_state.processed_docs:
+                    if st.button("🗑️ Clear All", use_container_width=True):
+                        if st.session_state.collection:
+                            try:
+                                st.session_state.chroma_client.delete_collection("documents")
+                                st.session_state.collection = None
+                            except:
+                                pass
+                            st.session_state.processed_docs = False
+                            st.session_state.documents = []
+                            st.session_state.current_files = []
+                            st.session_state.show_upload = True
+                            reset_chat()
+                            st.success("Database cleared!")
+                            st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Chat interface
+    if st.session_state.processed_docs:
+        # Status bar
+        with st.container():
+            st.markdown('<div class="status-box">', unsafe_allow_html=True)
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.write(f"**Documents:** {len(st.session_state.current_files)}")
+            with col2:
+                count = st.session_state.collection.count() if st.session_state.collection else 0
+                st.write(f"**Chunks:** {count}")
+            with col3:
+                mode = "🔍 Deep Research" if st.session_state.research_mode else "💬 Standard Chat"
+                st.write(f"**Mode:** {mode}")
+            st.markdown('</div>', unsafe_allow_html=True)
         
-        st.divider()
-        
-        # Research mode toggle
+        # Toggle for research mode
         st.session_state.research_mode = st.toggle("Deep Research Mode", 
                                                   help="In-depth analysis with comprehensive responses")
         
-        # Clear chat button
-        if st.button("Clear Chat"):
-            reset_chat()
-            st.rerun()
-        
-        # Clear database button
-        if st.button("Clear Database"):
-            if st.session_state.collection:
-                try:
-                    st.session_state.chroma_client.delete_collection("documents")
-                    st.session_state.collection = None
-                except:
-                    pass
-                st.session_state.processed_docs = False
-                st.session_state.documents = []
-                st.session_state.current_files = []
-                reset_chat()
-                st.success("Database cleared!")
-        
-        # Display document information if processed
-        if st.session_state.processed_docs and st.session_state.collection:
-            st.divider()
-            st.subheader("Processed Documents")
-            count = st.session_state.collection.count()
-            st.write(f"Chunks in database: {count}")
-            for i, file_name in enumerate(st.session_state.current_files):
-                st.caption(f"Document {i+1}: {file_name}")
-
-    # Main chat interface
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        # Display chat history
-        st.subheader("💬 Chat")
-        
-        if not st.session_state.processed_docs:
-            st.info("👆 Upload and process documents in the sidebar to start chatting")
-        
         # Display chat messages
-        for i, (question, answer, context) in enumerate(st.session_state.chat_history):
-            with st.chat_message("user"):
-                st.markdown(f"**You:** {question}")
-            with st.chat_message("assistant"):
-                st.markdown(answer)
+        display_chat_messages()
         
         # User input
-        if st.session_state.processed_docs:
-            user_question = st.chat_input("Ask a question about your documents...")
-            if user_question:
-                with st.chat_message("user"):
-                    st.markdown(f"**You:** {user_question}")
-                handle_userinput(user_question, st.session_state.research_mode)
+        user_question = st.chat_input("Ask a question about your documents...")
+        
+        if user_question:
+            # Add user question to chat immediately
+            response = handle_userinput(user_question, st.session_state.research_mode)
+            if response:
+                st.rerun()
     
-    with col2:
-        st.subheader("ℹ️ System Information")
-        
+    # Sidebar for additional controls
+    with st.sidebar:
+        st.markdown("### ⚙️ Settings")
         if st.session_state.processed_docs:
-            st.success("✅ Documents processed and ready for queries")
-            if st.session_state.collection:
-                count = st.session_state.collection.count()
-                st.write(f"Chunks in database: {count}")
-                st.write(f"Documents: {len(st.session_state.current_files)}")
-        else:
-            st.info("Please upload and process documents to start chatting")
+            if st.button("🧹 Clear Chat History"):
+                reset_chat()
+                st.rerun()
         
-        if st.session_state.research_mode:
-            st.info("🔍 Deep Research Mode: ON")
-        else:
-            st.info("💬 Standard Chat Mode: ON")
-        
-        st.divider()
-        st.subheader("📊 Usage Tips")
-        st.markdown("""
-        - Upload documents and click **Process Documents**
-        - Each time you upload new files, the system creates a fresh database
-        - Use **Deep Research Mode** for detailed analysis
-        - Ask specific questions for better answers
-        - **Clear Database** to start with new documents
+        st.markdown("---")
+        st.markdown("### 💡 Tips")
+        st.info("""
+        - Ask about **projects**, **experience**, or **skills** in resumes
+        - Use **specific questions** for better answers
+        - Enable **Deep Research** for comprehensive analysis
         - Supported formats: PDF, DOCX, TXT, XLSX, CSV
         """)
 
