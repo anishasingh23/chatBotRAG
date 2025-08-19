@@ -241,10 +241,6 @@ We love contributions! Areas needing help:
 - UI/UX improvements
 - Testing and documentation
 
-## License
-
-MIT License - feel free to use this for your own projects!
-
 ## Conclusion
 
 DocuChat represents the perfect blend of cutting-edge AI technology and practical, user-centered design. It demonstrates how with the right architectural choices and modern tools, you can build production-quality AI applications in record time.
@@ -258,4 +254,3 @@ DocuChat represents the perfect blend of cutting-edge AI technology and practica
 
 ---
 
-Built with care using Python, Streamlit, ChromaDB, and Groq
