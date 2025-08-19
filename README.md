@@ -2,6 +2,9 @@
 
 DocuChat is a powerful Retrieval-Augmented Generation (RAG) system that allows you to have intelligent conversations with your documents. Upload PDFs, Word documents, resumes, and more, then ask questions and get AI-powered answers based on your content.
 
+
+Check it out: https://fw1zl8bq-8501.inc1.devtunnels.ms/
+
 ## Why RAG? Why This Architecture?
 
 ### The Problem with Traditional Chatbots
