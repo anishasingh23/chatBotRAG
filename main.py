@@ -1,7 +1,4 @@
-"""
-DocuChat — single-file RAG chat over your documents.
-Free stack: Streamlit + ChromaDB + sentence-transformers + Groq (free tier).
-"""
+
 import io
 import os
 import re
