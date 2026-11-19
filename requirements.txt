@@ -1,16 +1,10 @@
-# requirements.txt
-streamlit
-langchain
-chromadb
-pypdf2
+streamlit>=1.36
+pypdf
 python-docx
+pandas
 openpyxl
-pdf2image
-pytesseract
-pillow
+plotly
+chromadb
 sentence-transformers
 groq
-tiktoken
-unstructured
-python-dotenv  # Add this for .env support
-plotly
+python-dotenv
